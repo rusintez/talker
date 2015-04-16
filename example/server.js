@@ -13,6 +13,8 @@ var server = http.createServer(app);
 shoe(talk(function(token, cb) {
   if (token === '12345') {
     cb(null, { name: 'John' });
+  } else {
+    cb('Access Denied');
   }
 }, function(t) {
   
