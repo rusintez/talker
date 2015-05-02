@@ -86,6 +86,7 @@ shoe(talk(auth, function(t) {
   var events = t.emitter();
 
   events.on('echo', function(msg) {
+    this.client; // { name: 'John' }
     events.emit('echo', msg);
   });
 
@@ -99,11 +100,11 @@ shoe(talk(auth, function(t) {
     }
   });
   
-  t.streams('upload', function(head, stream) {
+  t.streams('upload', function(head, stream, client) {
     stream.pipe(fs.createWriteStream(__dirname + '/' + head.filename));
   });
   
-  t.streams('download', function(head, stream) {
+  t.streams('download', function(head, stream, client) {
     stream.pipe(fs.createReadStream(__dirname + '/' + head.filename ));
   });
       
