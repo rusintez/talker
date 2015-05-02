@@ -10,6 +10,7 @@ client.js
 ```javascript
 var talk = require('talker');
 var shoe = require('shoe');
+var through = require('through2');
 
 // connect and (optinally) authenticate
 var remote  = talk(shoe('/talk'), 'my-auth-token');
@@ -33,6 +34,34 @@ rpc.call('sum', 2, 2, function(err, result) {
 rpc.call('hello', function(err, result) {
   console.log(err, result); // null, 'Hello, John'
 });
+
+// using streams
+
+var file = document.getElementById('input').files[0];
+
+var stream = remote.streams.createReadStream('upload', { 
+  filename: file.name, 
+  binary: true
+});
+
+toBuffer(file, function(err, buffer) {
+  stream.write(buffer);
+  stream.end();
+});
+
+stream.on('end', function() {
+  console.log('Upload complete');
+});
+
+var stream = remote.streams.createWriteStream('download', {
+  filename: file.name
+});
+
+stream.pipe(through(function(chunk, enc, cb) {
+  console.log(chunk);
+  cb();
+}));
+
 ```
 
 server.js
@@ -69,7 +98,15 @@ shoe(talk(auth, function(t) {
       cb(null, 'Hello, ' + this.client.name);
     }
   });
-
+  
+  t.streams('upload', function(head, stream) {
+    stream.pipe(fs.createWriteStream(__dirname + '/' + head.filename));
+  });
+  
+  t.streams('download', function(head, stream) {
+    stream.pipe(fs.createReadStream(__dirname + '/' + head.filename ));
+  });
+      
 })).install(server, '/talk');
 
 server.listen(50000, function() {
