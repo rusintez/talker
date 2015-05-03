@@ -12,8 +12,10 @@ var talk = require('talker');
 var shoe = require('shoe');
 var through = require('through2');
 
-// connect and (optinally) authenticate
-var remote  = talk(shoe('/talk'), 'my-auth-token');
+// connect and (optionally) authenticate
+var remote  = talk(function() {
+  return shoe('/talk');
+}, 'my-auth-token');
 
 // remote event emitter api
 var emitter = remote.emitter();

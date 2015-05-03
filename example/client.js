@@ -3,7 +3,9 @@ var shoe      = require('shoe');
 var through   = require('through2').obj;
 var toBuffer  = require('blob-to-buffer');
 var rebuffer  = require('rebuffer');
-var remote    = talk(shoe('/talk'), '12345');
+var remote    = talk(function() {
+  return shoe('/talk');
+}, '12345');
 
 var emitter = remote.emitter();
 var rpc     = remote.rpc();
@@ -53,6 +55,10 @@ input.addEventListener('change', function() {
       console.log('Upload ended');
     });
     
+    stream.on('error', function(err) {
+      console.log(err);
+    });
+    
     out.pipe(rebuffer(1024 * 128)).pipe(stream);
   });
 });
@@ -60,7 +66,13 @@ input.addEventListener('change', function() {
 var button = document.querySelector('#button');
 
 button.addEventListener('click', function() {
-  remote.streams.createReadStream('download', { binary: true, filename: 'server.js' }).pipe(through(function(chunk) {
+  var stream = remote.streams.createReadStream('download', { binary: true, filename: 'server.js' });
+  
+  stream.on('error', function(err) {
+    console.log(err);
+  });
+  
+  stream.pipe(through(function(chunk) {
     console.log(chunk.toString());
   }));
 });
