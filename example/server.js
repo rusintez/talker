@@ -43,6 +43,10 @@ shoe(talk(function(token, cb) {
   t.streams('upload', function(head, stream) {
     var fstream = fs.createWriteStream(__dirname + '/' + head.filename);
     
+    stream.on('error', function(err) {
+      console.log(err);
+    });
+    
     fstream.on('finish', function() {
       console.log('File upload complete');
     });
@@ -55,6 +59,11 @@ shoe(talk(function(token, cb) {
   });
   
   t.streams('download', function(head, stream) {
+    
+    stream.on('error', function(err) {
+      console.log(err);
+    });
+    
     var fstream = fs.createReadStream(__dirname + '/' + head.filename);
     fstream.pipe(stream);
   });
