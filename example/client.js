@@ -45,34 +45,49 @@ input.addEventListener('change', function() {
       console.log('File ended');
     });
     
-    var stream = remote.streams.createWriteStream('upload', { binary: true, filename: file.name });
+    var stream = remote.stream('upload', {
+      binary: true,
+      filename: file.name
+    });
     
     stream.on('finish', function() {
       console.log('transfer ended');
     });
     
-    stream.on('end', function() {
-      console.log('Upload ended');
+    stream.on('end', function(data) {
+      console.log('Upload ended', data);
     });
     
     stream.on('error', function(err) {
       console.log(err);
     });
     
-    out.pipe(rebuffer(1024 * 128)).pipe(stream);
+    stream.on('data', function(data) {
+      console.log('Data:', data.toString());
+    });
+    
+    out.pipe(rebuffer(1024 * 1024)).pipe(stream);
   });
 });
 
 var button = document.querySelector('#button');
 
 button.addEventListener('click', function() {
-  var stream = remote.streams.createReadStream('download', { binary: true, filename: 'server.js' });
+  
+  var stream = remote.stream('download', {
+    binary: true,
+    filename: 'server.js'
+  });
   
   stream.on('error', function(err) {
     console.log(err);
   });
   
-  stream.pipe(through(function(chunk) {
+  stream.pipe(through(function(chunk, enc, cb) {
     console.log(chunk.toString());
-  }));
+    cb();
+  }, function(cb) {
+    console.log('Download end');
+    cb();
+  }));  
 });

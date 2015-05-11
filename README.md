@@ -1,6 +1,6 @@
 # talker
 
-messaging patterns for streams on client and server
+Simplified client/server communication, using websockets
 
 ### Usage
 
@@ -26,7 +26,7 @@ emitter.on('echo', function(msg) {
 
 emitter.emit('echo', 'Hello');
 
-// remote procedure calling api
+// remote procedure calling
 var rpc = remote.rpc();
 
 rpc.call('sum', 2, 2, function(err, result) {
@@ -41,7 +41,7 @@ rpc.call('hello', function(err, result) {
 
 var file = document.getElementById('input').files[0];
 
-var stream = remote.streams.createReadStream('upload', { 
+var stream = remote.stream('upload', { 
   filename: file.name, 
   binary: true
 });
@@ -55,7 +55,7 @@ stream.on('end', function() {
   console.log('Upload complete');
 });
 
-var stream = remote.streams.createWriteStream('download', {
+var stream = remote.stream('download', {
   filename: file.name
 });
 
@@ -82,13 +82,12 @@ var auth = function(token, cb) {
 }
 
 // second function is called on client connect
-shoe(talk(auth, function(t) {
+shoe(talk(auth, function(t, client) {
 
   // remote event emitter api
   var events = t.emitter();
 
   events.on('echo', function(msg) {
-    this.client; // { name: 'John' }
     events.emit('echo', msg);
   });
 
@@ -98,18 +97,19 @@ shoe(talk(auth, function(t) {
       cb(null, a + b);
     },
     hello: function(cb) {
-      cb(null, 'Hello, ' + this.client.name);
+      cb(null, 'Hello, ' + client.name);
     }
   });
   
-  t.streams('upload', function(head, stream, client) {
+  t.stream('upload', function(head, stream, client) {
     stream.pipe(fs.createWriteStream(__dirname + '/' + head.filename));
   });
   
-  t.streams('download', function(head, stream, client) {
-    stream.pipe(fs.createReadStream(__dirname + '/' + head.filename ));
+  t.stream('download', function(head, stream, client) {
+    stream.push(null); // close readable (prevent memory leaks)
+    fs.createReadStream(__dirname + '/' + head.filename ).pipe(stream);
   });
-      
+  
 })).install(server, '/talk');
 
 server.listen(50000, function() {
