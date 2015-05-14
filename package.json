@@ -1,6 +1,6 @@
 {
   "name": "talker",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "",
   "main": "lib/server/index.js",
   "browser": "lib/client/index.js",

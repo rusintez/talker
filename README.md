@@ -6,67 +6,26 @@ Simplified client/server communication, using websockets
 
 Check `example`
 
-client.js
+#### Connect
+
+client
 ```javascript
 var talk = require('talker');
 var shoe = require('shoe');
-var through = require('through2');
 
-// connect and (optionally) authenticate
-var remote  = talk(function() {
-  return shoe('/talk');
-}, 'my-auth-token');
+// will be called everytime connection is broken
+function getStream() {
+  return shoe('/api');
+}
 
-// remote event emitter api
-var emitter = remote.emitter();
+// connect
+var remote = talk(getStream);
 
-emitter.on('echo', function(msg) {
-  console.log(msg); // 'Hello'
-});
-
-emitter.emit('echo', 'Hello');
-
-// remote procedure calling
-var rpc = remote.rpc();
-
-rpc.call('sum', 2, 2, function(err, result) {
-  console.log(err, result); // null, 4
-});
-
-rpc.call('hello', function(err, result) {
-  console.log(err, result); // null, 'Hello, John'
-});
-
-// using streams
-
-var file = document.getElementById('input').files[0];
-
-var stream = remote.stream('upload', { 
-  filename: file.name, 
-  binary: true
-});
-
-toBuffer(file, function(err, buffer) {
-  stream.write(buffer);
-  stream.end();
-});
-
-stream.on('end', function() {
-  console.log('Upload complete');
-});
-
-var stream = remote.stream('download', {
-  filename: file.name
-});
-
-stream.pipe(through(function(chunk, enc, cb) {
-  console.log(chunk);
-  cb();
-}));
-
+// alternatively connect using auth-token
+var secure = talk(getStream, 'my-secret-auth-token');
 ```
 
-server.js
+server
 ```javascript
 var http = require('http');
 var talk = require('talker');
@@ -75,53 +34,155 @@ var shoe = require('shoe');
 var server = http.createServer();
 
 // authenticate
-var auth = function(token, cb) {
-  if (token === 'my-auth-token') {
-    cb(null, { name: 'John' });
+function auth(token, cb) {
+  if (token === 'my-secret-auth-token') {
+    cb(null, { id: 123, name: 'John', role: 'admin' });
   }
 }
 
-// second function is called on client connect
-shoe(talk(auth, function(t, client) {
+// on client connected
+function onConection(remote, client) {
+  // client.id === 123
+  // application logic here...
+}
 
-  // remote event emitter api
-  var events = t.emitter();
+// accept connections
+shoe(talk(onConnection)).install(server, '/api');
 
-  events.on('echo', function(msg) {
-    events.emit('echo', msg);
+// alternatively accept connections and authenticate clients
+shoe(talk(auth, onConnection)).install(server, '/secure');
+
+server.listen(5000);
+```
+
+#### EventEmitter API
+
+client
+```javascript
+
+// create emitter
+var emitter = remote.emitter();
+
+// listen on events from server
+emitter.on('echo', function(msg) {
+  console.log(msg); // 'Hello'
+});
+
+// emit events to server
+emitter.emit('echo', 'Hello');
+
+// create namespaced emitter
+var chat = remote.emitter('chat');
+
+chat.on('message', function(message) {
+  //...
+});
+```
+
+server
+```javascript
+
+function onConnection(remote, client) {
+  var emitter = remote.emitter();
+
+  emitter.on('echo', function(msg) {
+    emitter.emit('echo', msg);
   });
 
-  // remote procedure calling api
-  var rpc = t.rpc({
+  var chat = remote.emitter('chat');
+
+  chat.emit('message', 'Hi there!');
+}
+```
+
+#### RPC API
+
+client
+```javascript
+
+// create default rpc
+var rpc = remote.rpc();
+
+rpc.call('sum', 2, 2, function(err, result) {
+  console.log(err, result); // null, 4
+});
+
+// create namespaced rpc
+var users = remote.rpc('users');
+
+users.call('create', { name: 'Peter' }, function(err, user) {
+  // ...
+});
+```
+
+server
+```javascript
+
+function onConnection(remote, client) {
+
+  // default
+  var rpc = remote.rpc({
     sum: function(a, b, cb) {
       cb(null, a + b);
-    },
-    hello: function(cb) {
-      cb(null, 'Hello, ' + client.name);
     }
   });
-  
-  t.stream('upload', function(head, stream, client) {
-    stream.pipe(fs.createWriteStream(__dirname + '/' + head.filename));
-  });
-  
-  t.stream('download', function(head, stream, client) {
-    stream.push(null); // close readable (prevent memory leaks)
-    fs.createReadStream(__dirname + '/' + head.filename ).pipe(stream);
-  });
-  
-})).install(server, '/talk');
 
-server.listen(50000, function() {
-  console.log('Server is listening on port 50000');
+  // namespaced
+  var users = remote.rpc('users', {
+    create: function(object, cb) {
+      // do stuff ...
+      cb(null, user);
+    }
+  })
+}
+```
+
+#### Stream API
+
+client
+```javascript
+
+var head = {
+  filename: 'hello.txt',
+  binary: true
+}
+
+// create upload stream with additional meta
+var stream = remote.stream('upload', head);
+
+// write buffers, since binary is set to true
+stream.write(new Buffer('Hello world!'));
+stream.end();
+
+stream.on('data', function(result) {
+  console.log('Upload complete with', result);
 });
+```
+
+server
+```javascript
+
+function onConnection(remote, client) {
+  remote.stream('upload', function(stream, head) {
+    var out = fs.createWriteStream(__dirname + '/' + head.filename);
+
+    out.on('finish', function() {
+      stream.end(new Buffer('Success'));
+    });
+
+    stream.pipe(out);
+  });
+}
 ```
 
 ### TODO
 
-- document `namespaces`
 - tests
 - coverage
+
+### Author
+
+Vladimir Popov <vlad@seedalpha.net>
 
 ### License
 
