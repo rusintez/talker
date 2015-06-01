@@ -182,7 +182,7 @@ function onConnection(remote, client) {
 
 ### Author
 
-Vladimir Popov <vlad@seedalpha.net>
+Vladimir Popov <rusintez@gmail.com>
 
 ### License
 
